@@ -1,18 +1,19 @@
 # Easy data augmentation techniques for text classification
-# Jason Wei and Kai Zou
+# Original code by Jason Wei and Kai Zou
+# Support for Portuguese language by Tiago Barros
 
 from eda import *
 
 #arguments to be parsed from command line
 import argparse
 ap = argparse.ArgumentParser()
-ap.add_argument("--input", required=True, type=str, help="input file of unaugmented data")
-ap.add_argument("--output", required=False, type=str, help="output file of unaugmented data")
-ap.add_argument("--num_aug", required=False, type=int, help="number of augmented sentences per original sentence")
-ap.add_argument("--alpha_sr", required=False, type=float, help="percent of words in each sentence to be replaced by synonyms")
-ap.add_argument("--alpha_ri", required=False, type=float, help="percent of words in each sentence to be inserted")
-ap.add_argument("--alpha_rs", required=False, type=float, help="percent of words in each sentence to be swapped")
-ap.add_argument("--alpha_rd", required=False, type=float, help="percent of words in each sentence to be deleted")
+ap.add_argument("--input", required=True, type=str, help="Input file of unaugmented data")
+ap.add_argument("--output", required=False, type=str, help="Output file of unaugmented data")
+ap.add_argument("--num_aug", required=False, type=int, help="Number of augmented sentences per original sentence")
+ap.add_argument("--alpha_sr", required=False, type=float, help="Percent of words in each sentence to be replaced by synonyms")
+ap.add_argument("--alpha_ri", required=False, type=float, help="Percent of words in each sentence to be inserted")
+ap.add_argument("--alpha_rs", required=False, type=float, help="Percent of words in each sentence to be swapped")
+ap.add_argument("--alpha_rd", required=False, type=float, help="Percent of words in each sentence to be deleted")
 args = ap.parse_args()
 
 #the output file
@@ -21,7 +22,7 @@ if args.output:
     output = args.output
 else:
     from os.path import dirname, basename, join
-    output = join(dirname(args.input), 'eda_' + basename(args.input))
+    output = join(dirname(args.input), "eda_" + basename(args.input))
 
 #number of augmented sentences to generate per original sentence
 num_aug = 9 #default
@@ -49,24 +50,29 @@ if args.alpha_rd is not None:
     alpha_rd = args.alpha_rd
 
 if alpha_sr == alpha_ri == alpha_rs == alpha_rd == 0:
-     ap.error('At least one alpha should be greater than zero')
+     ap.error("At least one alpha should be greater than zero")
 
 #generate more data with standard augmentation
 def gen_eda(train_orig, output_file, alpha_sr, alpha_ri, alpha_rs, alpha_rd, num_aug=9):
 
-    writer = open(output_file, 'w')
-    lines = open(train_orig, 'r').readlines()
+    import csv
+    writer_fp = open(output_file, "w", newline="")
+    writer = csv.writer(writer_fp, delimiter="\t", quoting=csv.QUOTE_ALL)
+    writer.writerow(["index", "label", "text"])
+    line_counter = 0
+    with open(train_orig, "r", newline="") as fp:
+        reader = csv.reader(fp, delimiter="\t", quoting=csv.QUOTE_ALL)
+        next(reader, None)
+        for line in reader:
+            label = line[1]
+            sentence = line[2]
+            aug_sentences = eda(sentence, alpha_sr=alpha_sr, alpha_ri=alpha_ri, alpha_rs=alpha_rs, p_rd=alpha_rd, num_aug=num_aug)
+            for aug_sentence in aug_sentences:
+                writer.writerow([line_counter, label, aug_sentence])
+                line_counter += 1
 
-    for i, line in enumerate(lines):
-        parts = line[:-1].split('\t')
-        label = parts[0]
-        sentence = parts[1]
-        aug_sentences = eda(sentence, alpha_sr=alpha_sr, alpha_ri=alpha_ri, alpha_rs=alpha_rs, p_rd=alpha_rd, num_aug=num_aug)
-        for aug_sentence in aug_sentences:
-            writer.write(label + "\t" + aug_sentence + '\n')
-
-    writer.close()
-    print("generated augmented sentences with eda for " + train_orig + " to " + output_file + " with num_aug=" + str(num_aug))
+    writer_fp.close()
+    print("Generated augmented sentences with eda for " + train_orig + " to " + output_file + " with num_aug=" + str(num_aug))
 
 #main function
 if __name__ == "__main__":
